@@ -1,0 +1,78 @@
+version: '3'
+services:
+  kaiware-line:
+    image: kingasiagroup/kaiware:1.0r3
+    #command: tail -F /dev/null
+    #command: /usr/sbin/sshd -D
+    command: /usr/bin/supervisord
+    hostname: kaiware-line 
+    container_name: "kaiware-line-${DOCKER_ID}"
+    privileged: true
+    restart: always
+    ports:
+      - "15022:22"
+      - "80:80"
+      - "28000:28000"
+      - "443:443"
+      - "5200:5200"
+    volumes:
+      - "./vol/kaiware/workspaces:/workspaces:Z"
+      - "./vol/kaiware/etc/supervisor:/etc/supervisor/:Z"
+      - "./vol/kaiware/etc/haproxy:/etc/haproxy/:Z"
+      - "./vol/kaiware/etc/bind:/etc/bind/:Z"
+      - "./vol/kaiware/etc/nginx:/etc/nginx/:Z"
+      - "./vol/kaiware/etc/letsencrypt:/etc/letsencrypt/:Z"
+      - "./vol/kaiware/m2:/root/.m2:Z"
+      - "./vol/kaiware/root/ssh:/root/.ssh:Z"
+      - "./vol/kaiware/home/ccbruce/ssh:/home/ccbruce/.ssh:Z"
+      - "./vol/kaiware/root/vscode-server:/root/.vscode-server:Z"
+      - "/etc/localtime:/etc/localtime:ro"
+    networks:
+      default:
+        ipv4_address: 172.77.1.6 
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 1g
+
+  redis:
+    hostname: redis
+    container_name: "line-redis-${DOCKER_ID}"
+    image: "redis:alpine"
+    environment:
+      #TZ: "Asia/Shanghai"
+      TZ: "Asia/Taipei"
+    restart: unless-stopped
+
+  phpmyadmin:
+    hostname: phpmyadmin
+    container_name: "line-phpmyadmin-${DOCKER_ID}"
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 15081:80
+    environment:
+      #- PMA_ARBITRARY=1
+      - PMA_HOST=line-mysql
+
+  database:
+    hostname: line-mysql
+    command: mysqld --sql_mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION" --lower_case_table_names=1 --local-infile
+    image: mariadb:10.2.40
+    container_name: "line-mysql-${DOCKER_ID}"
+    ports:
+      - 13306:3306
+    volumes:
+      - ./vol/db:/var/lib/mysql
+    environment:
+      MYSQL_PORT: 3306
+      MYSQL_ROOT_PASSWORD: mithra35
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.77.1.0/24
